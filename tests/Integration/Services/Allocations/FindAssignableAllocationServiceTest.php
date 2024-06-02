@@ -2,8 +2,6 @@
 
 namespace Pterodactyl\Tests\Integration\Services\Allocations;
 
-use Exception;
-use InvalidArgumentException;
 use Pterodactyl\Models\Allocation;
 use Pterodactyl\Tests\Integration\IntegrationTestCase;
 use Pterodactyl\Services\Allocations\FindAssignableAllocationService;
@@ -25,7 +23,7 @@ class FindAssignableAllocationServiceTest extends IntegrationTestCase
     }
 
     /**
-     * Test that an unassigned allocation is prefered rather than creating an entirely new
+     * Test that an unassigned allocation is preferred rather than creating an entirely new
      * allocation for the server.
      */
     public function testExistingAllocationIsPreferred()
@@ -141,9 +139,9 @@ class FindAssignableAllocationServiceTest extends IntegrationTestCase
 
         try {
             $this->getService()->handle($server);
-            $this->assertTrue(false, 'This assertion should not be reached.');
-        } catch (Exception $exception) {
-            $this->assertInstanceOf(InvalidArgumentException::class, $exception);
+            $this->fail('This assertion should not be reached.');
+        } catch (\Exception $exception) {
+            $this->assertInstanceOf(\InvalidArgumentException::class, $exception);
             $this->assertSame('Expected an integerish value. Got: string', $exception->getMessage());
         }
 
@@ -152,9 +150,9 @@ class FindAssignableAllocationServiceTest extends IntegrationTestCase
 
         try {
             $this->getService()->handle($server);
-            $this->assertTrue(false, 'This assertion should not be reached.');
-        } catch (Exception $exception) {
-            $this->assertInstanceOf(InvalidArgumentException::class, $exception);
+            $this->fail('This assertion should not be reached.');
+        } catch (\Exception $exception) {
+            $this->assertInstanceOf(\InvalidArgumentException::class, $exception);
             $this->assertSame('Expected an integerish value. Got: string', $exception->getMessage());
         }
     }
@@ -169,10 +167,7 @@ class FindAssignableAllocationServiceTest extends IntegrationTestCase
         $this->getService()->handle($server);
     }
 
-    /**
-     * @return \Pterodactyl\Services\Allocations\FindAssignableAllocationService
-     */
-    private function getService()
+    private function getService(): FindAssignableAllocationService
     {
         return $this->app->make(FindAssignableAllocationService::class);
     }

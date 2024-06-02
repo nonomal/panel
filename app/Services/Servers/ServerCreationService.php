@@ -12,7 +12,6 @@ use Illuminate\Support\Collection;
 use Pterodactyl\Models\Allocation;
 use Illuminate\Database\ConnectionInterface;
 use Pterodactyl\Models\Objects\DeploymentObject;
-use Pterodactyl\Repositories\Eloquent\EggRepository;
 use Pterodactyl\Repositories\Eloquent\ServerRepository;
 use Pterodactyl\Repositories\Wings\DaemonServerRepository;
 use Pterodactyl\Services\Deployment\FindViableNodesService;
@@ -23,84 +22,18 @@ use Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException;
 class ServerCreationService
 {
     /**
-     * @var \Pterodactyl\Services\Deployment\AllocationSelectionService
-     */
-    private $allocationSelectionService;
-
-    /**
-     * @var \Pterodactyl\Services\Servers\ServerConfigurationStructureService
-     */
-    private $configurationStructureService;
-
-    /**
-     * @var \Illuminate\Database\ConnectionInterface
-     */
-    private $connection;
-
-    /**
-     * @var \Pterodactyl\Services\Deployment\FindViableNodesService
-     */
-    private $findViableNodesService;
-
-    /**
-     * @var \Pterodactyl\Services\Servers\VariableValidatorService
-     */
-    private $validatorService;
-
-    /**
-     * @var \Pterodactyl\Repositories\Eloquent\EggRepository
-     */
-    private $eggRepository;
-
-    /**
-     * @var \Pterodactyl\Repositories\Eloquent\ServerRepository
-     */
-    private $repository;
-
-    /**
-     * @var \Pterodactyl\Repositories\Eloquent\ServerVariableRepository
-     */
-    private $serverVariableRepository;
-
-    /**
-     * @var \Pterodactyl\Repositories\Wings\DaemonServerRepository
-     */
-    private $daemonServerRepository;
-
-    /**
-     * @var \Pterodactyl\Services\Servers\ServerDeletionService
-     */
-    private $serverDeletionService;
-
-    /**
-     * CreationService constructor.
-     *
-     * @param \Pterodactyl\Services\Servers\ServerConfigurationStructureService $configurationStructureService
-     * @param \Pterodactyl\Services\Servers\ServerDeletionService $serverDeletionService
-     * @param \Pterodactyl\Services\Servers\VariableValidatorService $validatorService
+     * ServerCreationService constructor.
      */
     public function __construct(
-        AllocationSelectionService $allocationSelectionService,
-        ConnectionInterface $connection,
-        DaemonServerRepository $daemonServerRepository,
-        EggRepository $eggRepository,
-        FindViableNodesService $findViableNodesService,
-        ServerConfigurationStructureService $configurationStructureService,
-        ServerDeletionService $serverDeletionService,
-        ServerRepository $repository,
-        ServerVariableRepository $serverVariableRepository,
-        VariableValidatorService $validatorService
+        private AllocationSelectionService $allocationSelectionService,
+        private ConnectionInterface $connection,
+        private DaemonServerRepository $daemonServerRepository,
+        private FindViableNodesService $findViableNodesService,
+        private ServerRepository $repository,
+        private ServerDeletionService $serverDeletionService,
+        private ServerVariableRepository $serverVariableRepository,
+        private VariableValidatorService $validatorService
     ) {
-        $this->allocationSelectionService = $allocationSelectionService;
-        $this->configurationStructureService = $configurationStructureService;
-        $this->connection = $connection;
-        $this->findViableNodesService = $findViableNodesService;
-        $this->validatorService = $validatorService;
-        $this->eggRepository = $eggRepository;
-        $this->repository = $repository;
-        $this->serverVariableRepository = $serverVariableRepository;
-        $this->daemonServerRepository = $daemonServerRepository;
-        $this->serverDeletionService = $serverDeletionService;
     }
 
     /**
@@ -149,7 +82,7 @@ class ServerCreationService
         //
         // If that connection fails out we will attempt to perform a cleanup by just
         // deleting the server itself from the system.
-        /** @var \Pterodactyl\Models\Server $server */
+        /** @var Server $server */
         $server = $this->connection->transaction(function () use ($data, $eggVariableData) {
             // Create the server and assign any additional allocations to it.
             $server = $this->createModel($data);
@@ -182,7 +115,7 @@ class ServerCreationService
      */
     private function configureDeployment(array $data, DeploymentObject $deployment): Allocation
     {
-        /** @var \Illuminate\Support\Collection $nodes */
+        /** @var Collection $nodes */
         $nodes = $this->findViableNodesService->setLocations($deployment->getLocations())
             ->setDisk(Arr::get($data, 'disk'))
             ->setMemory(Arr::get($data, 'memory'))
@@ -203,7 +136,7 @@ class ServerCreationService
     {
         $uuid = $this->generateUniqueUuidCombo();
 
-        /** @var \Pterodactyl\Models\Server $model */
+        /** @var Server $model */
         $model = $this->repository->create([
             'external_id' => Arr::get($data, 'external_id'),
             'uuid' => $uuid,
@@ -220,7 +153,7 @@ class ServerCreationService
             'io' => Arr::get($data, 'io'),
             'cpu' => Arr::get($data, 'cpu'),
             'threads' => Arr::get($data, 'threads'),
-            'oom_disabled' => Arr::get($data, 'oom_disabled') ?? true,
+            'oom_killer' => Arr::get($data, 'oom_killer') ?? false,
             'allocation_id' => Arr::get($data, 'allocation_id'),
             'nest_id' => Arr::get($data, 'nest_id'),
             'egg_id' => Arr::get($data, 'egg_id'),
@@ -237,7 +170,7 @@ class ServerCreationService
     /**
      * Configure the allocations assigned to this server.
      */
-    private function storeAssignedAllocations(Server $server, array $data)
+    private function storeAssignedAllocations(Server $server, array $data): void
     {
         $records = [$data['allocation_id']];
         if (isset($data['allocation_additional']) && is_array($data['allocation_additional'])) {
@@ -252,7 +185,7 @@ class ServerCreationService
     /**
      * Process environment variables passed for this server and store them in the database.
      */
-    private function storeEggVariables(Server $server, Collection $variables)
+    private function storeEggVariables(Server $server, Collection $variables): void
     {
         $records = $variables->map(function ($result) use ($server) {
             return [

@@ -2,11 +2,9 @@
 
 namespace Pterodactyl\Jobs\Schedule;
 
-use Exception;
 use Pterodactyl\Jobs\Job;
 use Carbon\CarbonImmutable;
 use Pterodactyl\Models\Task;
-use InvalidArgumentException;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -23,23 +21,11 @@ class RunTaskJob extends Job implements ShouldQueue
     use SerializesModels;
 
     /**
-     * @var \Pterodactyl\Models\Task
-     */
-    public $task;
-
-    /**
-     * @var bool
-     */
-    public $manualRun;
-
-    /**
      * RunTaskJob constructor.
      */
-    public function __construct(Task $task, $manualRun = false)
+    public function __construct(public Task $task, public bool $manualRun = false)
     {
-        $this->queue = config('pterodactyl.queues.standard');
-        $this->task = $task;
-        $this->manualRun = $manualRun;
+        $this->queue = 'standard';
     }
 
     /**
@@ -84,9 +70,9 @@ class RunTaskJob extends Job implements ShouldQueue
                     $backupService->setIgnoredFiles(explode(PHP_EOL, $this->task->payload))->handle($server, null, true);
                     break;
                 default:
-                    throw new InvalidArgumentException('Invalid task action provided: ' . $this->task->action);
+                    throw new \InvalidArgumentException('Invalid task action provided: ' . $this->task->action);
             }
-        } catch (Exception $exception) {
+        } catch (\Exception $exception) {
             // If this isn't a DaemonConnectionException on a task that allows for failures
             // throw the exception back up the chain so that the task is stopped.
             if (!($this->task->continue_on_failure && $exception instanceof DaemonConnectionException)) {
@@ -101,7 +87,7 @@ class RunTaskJob extends Job implements ShouldQueue
     /**
      * Handle a failure while sending the action to the daemon or otherwise processing the job.
      */
-    public function failed(Exception $exception = null)
+    public function failed(\Exception $exception = null)
     {
         $this->markTaskNotQueued();
         $this->markScheduleComplete();

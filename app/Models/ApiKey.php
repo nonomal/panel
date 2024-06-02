@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property array|null $allowed_ips
  * @property string|null $memo
  * @property \Illuminate\Support\Carbon|null $last_used_at
+ * @property \Illuminate\Support\Carbon|null $expires_at
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property int $r_servers
@@ -55,6 +56,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @method static \Illuminate\Database\Eloquent\Builder|ApiKey whereToken($value)
  * @method static \Illuminate\Database\Eloquent\Builder|ApiKey whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder|ApiKey whereUserId($value)
+ *
  * @mixin \Eloquent
  */
 class ApiKey extends Model
@@ -87,19 +89,19 @@ class ApiKey extends Model
 
     /**
      * The table associated with the model.
-     *
-     * @var string
      */
     protected $table = 'api_keys';
 
     /**
      * Cast values to correct type.
-     *
-     * @var array
      */
     protected $casts = [
         'allowed_ips' => 'array',
         'user_id' => 'int',
+        'last_used_at' => 'datetime',
+        'expires_at' => 'datetime',
+        self::CREATED_AT => 'datetime',
+        self::UPDATED_AT => 'datetime',
         'r_' . AdminAcl::RESOURCE_USERS => 'int',
         'r_' . AdminAcl::RESOURCE_ALLOCATIONS => 'int',
         'r_' . AdminAcl::RESOURCE_DATABASE_HOSTS => 'int',
@@ -113,8 +115,6 @@ class ApiKey extends Model
 
     /**
      * Fields that are mass assignable.
-     *
-     * @var array
      */
     protected $fillable = [
         'identifier',
@@ -122,22 +122,19 @@ class ApiKey extends Model
         'allowed_ips',
         'memo',
         'last_used_at',
+        'expires_at',
     ];
 
     /**
      * Fields that should not be included when calling toArray() or toJson()
      * on this model.
-     *
-     * @var array
      */
     protected $hidden = ['token'];
 
     /**
      * Rules to protect against invalid data entry to DB.
-     *
-     * @var array
      */
-    public static $validationRules = [
+    public static array $validationRules = [
         'user_id' => 'required|exists:users,id',
         'key_type' => 'present|integer|min:0|max:4',
         'identifier' => 'required|string|size:16|unique:api_keys,identifier',
@@ -146,6 +143,7 @@ class ApiKey extends Model
         'allowed_ips' => 'nullable|array',
         'allowed_ips.*' => 'string',
         'last_used_at' => 'nullable|date',
+        'expires_at' => 'nullable|date',
         'r_' . AdminAcl::RESOURCE_USERS => 'integer|min:0|max:3',
         'r_' . AdminAcl::RESOURCE_ALLOCATIONS => 'integer|min:0|max:3',
         'r_' . AdminAcl::RESOURCE_DATABASE_HOSTS => 'integer|min:0|max:3',
@@ -155,15 +153,6 @@ class ApiKey extends Model
         'r_' . AdminAcl::RESOURCE_NESTS => 'integer|min:0|max:3',
         'r_' . AdminAcl::RESOURCE_NODES => 'integer|min:0|max:3',
         'r_' . AdminAcl::RESOURCE_SERVERS => 'integer|min:0|max:3',
-    ];
-
-    /**
-     * @var array
-     */
-    protected $dates = [
-        self::CREATED_AT,
-        self::UPDATED_AT,
-        'last_used_at',
     ];
 
     /**
@@ -177,23 +166,17 @@ class ApiKey extends Model
     /**
      * Required for support with Laravel Sanctum.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     *
      * @see \Laravel\Sanctum\Guard::supportsTokens()
      */
-    public function tokenable()
+    public function tokenable(): BelongsTo
     {
         return $this->user();
     }
 
     /**
      * Finds the model matching the provided token.
-     *
-     * @param string $token
-     *
-     * @return self|null
      */
-    public static function findToken($token)
+    public static function findToken(string $token): ?self
     {
         $identifier = substr($token, 0, self::IDENTIFIER_LENGTH);
 

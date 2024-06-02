@@ -11,13 +11,13 @@ use Pterodactyl\Http\Requests\Api\Client\Account\StoreSSHKeyRequest;
 class SSHKeyController extends ClientApiController
 {
     /**
-     * Returns all of the SSH keys that have been configured for the logged in
+     * Returns all the SSH keys that have been configured for the logged-in
      * user account.
      */
     public function index(ClientApiRequest $request): array
     {
         return $this->fractal->collection($request->user()->sshKeys)
-            ->transformWith($this->getTransformer(UserSSHKeyTransformer::class))
+            ->transformWith(UserSSHKeyTransformer::class)
             ->toArray();
     }
 
@@ -38,7 +38,7 @@ class SSHKeyController extends ClientApiController
             ->log();
 
         return $this->fractal->item($model)
-            ->transformWith($this->getTransformer(UserSSHKeyTransformer::class))
+            ->transformWith(UserSSHKeyTransformer::class)
             ->toArray();
     }
 

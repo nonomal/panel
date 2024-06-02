@@ -7,35 +7,27 @@ use Pterodactyl\Models\Permission;
 use Spatie\QueryBuilder\QueryBuilder;
 use Spatie\QueryBuilder\AllowedFilter;
 use Pterodactyl\Models\Filters\MultiFieldServerFilter;
-use Pterodactyl\Repositories\Eloquent\ServerRepository;
 use Pterodactyl\Transformers\Api\Client\ServerTransformer;
 use Pterodactyl\Http\Requests\Api\Client\GetServersRequest;
 
 class ClientController extends ClientApiController
 {
     /**
-     * @var \Pterodactyl\Repositories\Eloquent\ServerRepository
-     */
-    private $repository;
-
-    /**
      * ClientController constructor.
      */
-    public function __construct(ServerRepository $repository)
+    public function __construct()
     {
         parent::__construct();
-
-        $this->repository = $repository;
     }
 
     /**
-     * Return all of the servers available to the client making the API
+     * Return all the servers available to the client making the API
      * request, including servers the user has access to as a subuser.
      */
     public function index(GetServersRequest $request): array
     {
         $user = $request->user();
-        $transformer = $this->getTransformer(ServerTransformer::class);
+        $transformer = new ServerTransformer();
 
         // Start the query builder and ensure we eager load any requested relationships from the request.
         $builder = QueryBuilder::for(
@@ -48,9 +40,14 @@ class ClientController extends ClientApiController
             AllowedFilter::custom('*', new MultiFieldServerFilter()),
         ]);
 
+        $loweredBindings = collect($builder->getBindings())
+            ->map(fn ($f, $key) => is_string($f) ? strtolower($f) : $f)
+            ->all();
+        $builder->setBindings($loweredBindings);
+
         $type = $request->input('type');
-        // Either return all of the servers the user has access to because they are an admin `?type=admin` or
-        // just return all of the servers the user has access to because they are the owner or a subuser of the
+        // Either return all the servers the user has access to because they are an admin `?type=admin` or
+        // just return all the servers the user has access to because they are the owner or a subuser of the
         // server. If ?type=admin-all is passed all servers on the system will be returned to the user, rather
         // than only servers they can see because they are an admin.
         if (in_array($type, ['admin', 'admin-all'])) {
@@ -75,11 +72,9 @@ class ClientController extends ClientApiController
     }
 
     /**
-     * Returns all of the subuser permissions available on the system.
-     *
-     * @return array
+     * Returns all the subuser permissions available on the system.
      */
-    public function permissions()
+    public function permissions(): array
     {
         return [
             'object' => 'system_permissions',

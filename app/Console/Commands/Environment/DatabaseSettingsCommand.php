@@ -2,7 +2,6 @@
 
 namespace Pterodactyl\Console\Commands\Environment;
 
-use PDOException;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\DatabaseManager;
@@ -12,24 +11,8 @@ class DatabaseSettingsCommand extends Command
 {
     use EnvironmentWriterTrait;
 
-    /**
-     * @var \Illuminate\Contracts\Console\Kernel
-     */
-    protected $console;
-
-    /**
-     * @var \Illuminate\Database\DatabaseManager
-     */
-    protected $database;
-
-    /**
-     * @var string
-     */
     protected $description = 'Configure database settings for the Panel.';
 
-    /**
-     * @var string
-     */
     protected $signature = 'p:environment:database
                             {--host= : The connection address for the MySQL server.}
                             {--port= : The connection port for the MySQL server.}
@@ -37,30 +20,22 @@ class DatabaseSettingsCommand extends Command
                             {--username= : Username to use when connecting.}
                             {--password= : Password to use for this database.}';
 
-    /**
-     * @var array
-     */
-    protected $variables = [];
+    protected array $variables = [];
 
     /**
      * DatabaseSettingsCommand constructor.
      */
-    public function __construct(DatabaseManager $database, Kernel $console)
+    public function __construct(private DatabaseManager $database, private Kernel $console)
     {
         parent::__construct();
-
-        $this->console = $console;
-        $this->database = $database;
     }
 
     /**
      * Handle command execution.
      *
-     * @return int
-     *
      * @throws \Pterodactyl\Exceptions\PterodactylException
      */
-    public function handle()
+    public function handle(): int
     {
         $this->output->note('It is highly recommended to not use "localhost" as your database host as we have seen frequent socket connection issues. If you want to use a local connection you should be using "127.0.0.1".');
         $this->variables['DB_HOST'] = $this->option('host') ?? $this->ask(
@@ -96,7 +71,7 @@ class DatabaseSettingsCommand extends Command
 
         try {
             $this->testMySQLConnection();
-        } catch (PDOException $exception) {
+        } catch (\PDOException $exception) {
             $this->output->error(sprintf('Unable to connect to the MySQL server using the provided credentials. The error returned was "%s".', $exception->getMessage()));
             $this->output->error('Your connection credentials have NOT been saved. You will need to provide valid connection information before proceeding.');
 

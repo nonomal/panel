@@ -2,15 +2,19 @@
 
 namespace Pterodactyl\Http\Controllers\Api\Application\Users;
 
+use Illuminate\Support\Arr;
 use Pterodactyl\Models\User;
 use Illuminate\Http\Response;
 use Illuminate\Http\JsonResponse;
 use Spatie\QueryBuilder\QueryBuilder;
+use Spatie\QueryBuilder\AllowedFilter;
+use Illuminate\Database\Eloquent\Builder;
 use Pterodactyl\Services\Users\UserUpdateService;
 use Pterodactyl\Services\Users\UserCreationService;
 use Pterodactyl\Services\Users\UserDeletionService;
-use Pterodactyl\Contracts\Repository\UserRepositoryInterface;
 use Pterodactyl\Transformers\Api\Application\UserTransformer;
+use Pterodactyl\Exceptions\Http\QueryValueOutOfRangeHttpException;
+use Pterodactyl\Http\Requests\Api\Application\Users\GetUserRequest;
 use Pterodactyl\Http\Requests\Api\Application\Users\GetUsersRequest;
 use Pterodactyl\Http\Requests\Api\Application\Users\StoreUserRequest;
 use Pterodactyl\Http\Requests\Api\Application\Users\DeleteUserRequest;
@@ -20,40 +24,14 @@ use Pterodactyl\Http\Controllers\Api\Application\ApplicationApiController;
 class UserController extends ApplicationApiController
 {
     /**
-     * @var \Pterodactyl\Services\Users\UserCreationService
-     */
-    private $creationService;
-
-    /**
-     * @var \Pterodactyl\Services\Users\UserDeletionService
-     */
-    private $deletionService;
-
-    /**
-     * @var \Pterodactyl\Contracts\Repository\UserRepositoryInterface
-     */
-    private $repository;
-
-    /**
-     * @var \Pterodactyl\Services\Users\UserUpdateService
-     */
-    private $updateService;
-
-    /**
      * UserController constructor.
      */
     public function __construct(
-        UserRepositoryInterface $repository,
-        UserCreationService $creationService,
-        UserDeletionService $deletionService,
-        UserUpdateService $updateService
+        private UserCreationService $creationService,
+        private UserDeletionService $deletionService,
+        private UserUpdateService $updateService
     ) {
         parent::__construct();
-
-        $this->creationService = $creationService;
-        $this->deletionService = $deletionService;
-        $this->repository = $repository;
-        $this->updateService = $updateService;
     }
 
     /**
@@ -63,24 +41,48 @@ class UserController extends ApplicationApiController
      */
     public function index(GetUsersRequest $request): array
     {
+        $perPage = (int) $request->query('per_page', '10');
+        if ($perPage < 1 || $perPage > 100) {
+            throw new QueryValueOutOfRangeHttpException('per_page', 1, 100);
+        }
+
         $users = QueryBuilder::for(User::query())
-            ->allowedFilters(['email', 'uuid', 'username', 'external_id'])
-            ->allowedSorts(['id', 'uuid'])
-            ->paginate($request->query('per_page') ?? 50);
+            ->allowedFilters([
+                AllowedFilter::exact('id'),
+                AllowedFilter::exact('uuid'),
+                AllowedFilter::exact('external_id'),
+                'username',
+                'email',
+                AllowedFilter::callback('*', function (Builder $builder, $value) {
+                    foreach (Arr::wrap($value) as $datum) {
+                        $datum = '%' . $datum . '%';
+                        $builder->where(function (Builder $builder) use ($datum) {
+                            $builder->where('uuid', 'LIKE', $datum)
+                                ->orWhere('username', 'LIKE', $datum)
+                                ->orWhere('email', 'LIKE', $datum)
+                                ->orWhere('external_id', 'LIKE', $datum);
+                        });
+                    }
+                }),
+            ])
+            ->allowedSorts(['id', 'uuid', 'username', 'email', 'admin_role_id'])
+            ->paginate($perPage);
 
         return $this->fractal->collection($users)
-            ->transformWith($this->getTransformer(UserTransformer::class))
+            ->transformWith(UserTransformer::class)
             ->toArray();
     }
 
     /**
      * Handle a request to view a single user. Includes any relations that
      * were defined in the request.
+     *
+     * @throws \Illuminate\Contracts\Container\BindingResolutionException
      */
-    public function view(GetUsersRequest $request, User $user): array
+    public function view(GetUserRequest $request, User $user): array
     {
         return $this->fractal->item($user)
-            ->transformWith($this->getTransformer(UserTransformer::class))
+            ->transformWith(UserTransformer::class)
             ->toArray();
     }
 
@@ -92,18 +94,16 @@ class UserController extends ApplicationApiController
      * Revocation errors are returned under the 'revocation_errors' key in the response
      * meta. If there are no errors this is an empty array.
      *
-     * @throws \Pterodactyl\Exceptions\Model\DataValidationException
-     * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
+     * @throws \Illuminate\Contracts\Container\BindingResolutionException
      */
     public function update(UpdateUserRequest $request, User $user): array
     {
         $this->updateService->setUserLevel(User::USER_LEVEL_ADMIN);
         $user = $this->updateService->handle($user, $request->validated());
 
-        $response = $this->fractal->item($user)
-            ->transformWith($this->getTransformer(UserTransformer::class));
-
-        return $response->toArray();
+        return $this->fractal->item($user)
+            ->transformWith(UserTransformer::class)
+            ->toArray();
     }
 
     /**
@@ -118,12 +118,7 @@ class UserController extends ApplicationApiController
         $user = $this->creationService->handle($request->validated());
 
         return $this->fractal->item($user)
-            ->transformWith($this->getTransformer(UserTransformer::class))
-            ->addMeta([
-                'resource' => route('api.application.users.view', [
-                    'user' => $user->id,
-                ]),
-            ])
+            ->transformWith(UserTransformer::class)
             ->respond(201);
     }
 
@@ -133,10 +128,10 @@ class UserController extends ApplicationApiController
      *
      * @throws \Pterodactyl\Exceptions\DisplayException
      */
-    public function delete(DeleteUserRequest $request, User $user): JsonResponse
+    public function delete(DeleteUserRequest $request, User $user): Response
     {
         $this->deletionService->handle($user);
 
-        return new JsonResponse([], JsonResponse::HTTP_NO_CONTENT);
+        return $this->returnNoContent();
     }
 }

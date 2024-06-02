@@ -19,7 +19,7 @@ class RouteServiceProvider extends ServiceProvider
     /**
      * Define your route model bindings, pattern filters, etc.
      */
-    public function boot()
+    public function boot(): void
     {
         $this->configureRateLimiting();
 
@@ -30,7 +30,7 @@ class RouteServiceProvider extends ServiceProvider
         });
 
         // This is needed to make use of the "resolveRouteBinding" functionality in the
-        // model. Without it you'll never trigger that logic flow thus resulting in a 404
+        // model. Without it, you'll never trigger that logic flow thus resulting in a 404
         // error because we request databases with a HashID, and not with a normal ID.
         Route::model('database', Database::class);
 
@@ -68,7 +68,7 @@ class RouteServiceProvider extends ServiceProvider
     /**
      * Configure the rate limiters for the application.
      */
-    protected function configureRateLimiting()
+    protected function configureRateLimiting(): void
     {
         // Authentication rate limiting. For login and checkpoint endpoints we'll apply
         // a limit of 10 requests per minute, for the forgot password endpoint apply a

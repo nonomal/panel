@@ -15,30 +15,17 @@ use Pterodactyl\Http\Requests\Api\Client\Account\UpdatePasswordRequest;
 class AccountController extends ClientApiController
 {
     /**
-     * @var \Pterodactyl\Services\Users\UserUpdateService
-     */
-    private $updateService;
-
-    /**
-     * @var \Illuminate\Auth\AuthManager
-     */
-    private $manager;
-
-    /**
      * AccountController constructor.
      */
-    public function __construct(AuthManager $manager, UserUpdateService $updateService)
+    public function __construct(private AuthManager $manager, private UserUpdateService $updateService)
     {
         parent::__construct();
-
-        $this->updateService = $updateService;
-        $this->manager = $manager;
     }
 
     public function index(Request $request): array
     {
         return $this->fractal->item($request->user())
-            ->transformWith($this->getTransformer(AccountTransformer::class))
+            ->transformWith(AccountTransformer::class)
             ->toArray();
     }
 

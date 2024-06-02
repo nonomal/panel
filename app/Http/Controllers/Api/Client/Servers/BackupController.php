@@ -18,32 +18,21 @@ use Pterodactyl\Transformers\Api\Client\BackupTransformer;
 use Pterodactyl\Http\Controllers\Api\Client\ClientApiController;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Pterodactyl\Http\Requests\Api\Client\Servers\Backups\StoreBackupRequest;
+use Pterodactyl\Http\Requests\Api\Client\Servers\Backups\RestoreBackupRequest;
 
 class BackupController extends ClientApiController
 {
-    private InitiateBackupService $initiateBackupService;
-    private DeleteBackupService $deleteBackupService;
-    private DownloadLinkService $downloadLinkService;
-    private DaemonBackupRepository $daemonRepository;
-    private BackupRepository $repository;
-
     /**
      * BackupController constructor.
      */
     public function __construct(
-        DaemonBackupRepository $daemonRepository,
-        DeleteBackupService $deleteBackupService,
-        InitiateBackupService $initiateBackupService,
-        DownloadLinkService $downloadLinkService,
-        BackupRepository $repository
+        private DaemonBackupRepository $daemonRepository,
+        private DeleteBackupService $deleteBackupService,
+        private InitiateBackupService $initiateBackupService,
+        private DownloadLinkService $downloadLinkService,
+        private BackupRepository $repository
     ) {
         parent::__construct();
-
-        $this->repository = $repository;
-        $this->initiateBackupService = $initiateBackupService;
-        $this->deleteBackupService = $deleteBackupService;
-        $this->downloadLinkService = $downloadLinkService;
-        $this->daemonRepository = $daemonRepository;
     }
 
     /**
@@ -61,7 +50,7 @@ class BackupController extends ClientApiController
         $limit = min($request->query('per_page') ?? 20, 50);
 
         return $this->fractal->collection($server->backups()->paginate($limit))
-            ->transformWith($this->getTransformer(BackupTransformer::class))
+            ->transformWith(BackupTransformer::class)
             ->addMeta([
                 'backup_count' => $this->repository->getNonFailedBackups($server)->count(),
             ])
@@ -96,7 +85,7 @@ class BackupController extends ClientApiController
             ->log();
 
         return $this->fractal->item($backup)
-            ->transformWith($this->getTransformer(BackupTransformer::class))
+            ->transformWith(BackupTransformer::class)
             ->toArray();
     }
 
@@ -119,7 +108,7 @@ class BackupController extends ClientApiController
         Activity::event($action)->subject($backup)->property('name', $backup->name)->log();
 
         return $this->fractal->item($backup)
-            ->transformWith($this->getTransformer(BackupTransformer::class))
+            ->transformWith(BackupTransformer::class)
             ->toArray();
     }
 
@@ -135,7 +124,7 @@ class BackupController extends ClientApiController
         }
 
         return $this->fractal->item($backup)
-            ->transformWith($this->getTransformer(BackupTransformer::class))
+            ->transformWith(BackupTransformer::class)
             ->toArray();
     }
 
@@ -194,18 +183,14 @@ class BackupController extends ClientApiController
      * to begin the process of finding (or downloading) the backup and unpacking it
      * over the server files.
      *
-     * If the "truncate" flag is passed through in this request then all of the
+     * If the "truncate" flag is passed through in this request then all the
      * files that currently exist on the server will be deleted before restoring.
-     * Otherwise the archive will simply be unpacked over the existing files.
+     * Otherwise, the archive will simply be unpacked over the existing files.
      *
      * @throws \Throwable
      */
-    public function restore(Request $request, Server $server, Backup $backup): JsonResponse
+    public function restore(RestoreBackupRequest $request, Server $server, Backup $backup): JsonResponse
     {
-        if (!$request->user()->can(Permission::ACTION_BACKUP_RESTORE, $server)) {
-            throw new AuthorizationException();
-        }
-
         // Cannot restore a backup unless a server is fully installed and not currently
         // processing a different backup restoration request.
         if (!is_null($server->status)) {

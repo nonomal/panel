@@ -2,7 +2,7 @@
 
 namespace Pterodactyl\Tests\Integration\Api\Client\Server\Backup;
 
-use Mockery;
+use Mockery\MockInterface;
 use Illuminate\Http\Response;
 use Pterodactyl\Models\Backup;
 use Pterodactyl\Models\Permission;
@@ -13,7 +13,7 @@ use Pterodactyl\Tests\Integration\Api\Client\ClientApiIntegrationTestCase;
 
 class DeleteBackupTest extends ClientApiIntegrationTestCase
 {
-    private $repository;
+    private MockInterface $repository;
 
     public function setUp(): void
     {
@@ -47,7 +47,7 @@ class DeleteBackupTest extends ClientApiIntegrationTestCase
         $backup = Backup::factory()->create(['server_id' => $server->id]);
 
         $this->repository->expects('setServer->delete')->with(
-            Mockery::on(function ($value) use ($backup) {
+            \Mockery::on(function ($value) use ($backup) {
                 return $value instanceof Backup && $value->uuid === $backup->uuid;
             })
         )->andReturn(new Response());

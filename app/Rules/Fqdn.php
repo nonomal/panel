@@ -6,11 +6,11 @@ use Illuminate\Support\Arr;
 use Illuminate\Contracts\Validation\Rule;
 use Illuminate\Contracts\Validation\DataAwareRule;
 
-class Fqdn implements Rule, DataAwareRule
+final class Fqdn implements Rule, DataAwareRule
 {
-    protected array $data = [];
-    protected string $message = '';
-    protected ?string $schemeField = null;
+    private array $data = [];
+    private string $message = '';
+    private ?string $schemeField = null;
 
     /**
      * @param array $data
@@ -28,9 +28,8 @@ class Fqdn implements Rule, DataAwareRule
      *
      * @param string $attribute
      * @param mixed $value
-     * @return bool
      */
-    public function passes($attribute, $value)
+    public function passes($attribute, $value): bool
     {
         if (filter_var($value, FILTER_VALIDATE_IP)) {
             // Check if the scheme is set to HTTPS.

@@ -25,7 +25,7 @@ class VariableValidatorServiceTest extends IntegrationTestCase
     }
 
     /**
-     * Test that enviornment variables for a server are validated as expected.
+     * Test that environment variables for a server are validated as expected.
      */
     public function testEnvironmentVariablesCanBeValidated()
     {
@@ -36,7 +36,7 @@ class VariableValidatorServiceTest extends IntegrationTestCase
                 'BUNGEE_VERSION' => '1.2.3',
             ]);
 
-            $this->assertTrue(false, 'This statement should not be reached.');
+            $this->fail('This statement should not be reached.');
         } catch (ValidationException $exception) {
             $errors = $exception->errors();
 
@@ -96,7 +96,7 @@ class VariableValidatorServiceTest extends IntegrationTestCase
                 'SERVER_JARFILE' => 'server.jar',
             ]);
 
-            $this->assertTrue(false, 'This statement should not be reached.');
+            $this->fail('This statement should not be reached.');
         } catch (ValidationException $exception) {
             $this->assertCount(1, $exception->errors());
             $this->assertArrayHasKey('environment.BUNGEE_VERSION', $exception->errors());
@@ -108,11 +108,12 @@ class VariableValidatorServiceTest extends IntegrationTestCase
         ]);
 
         $this->assertInstanceOf(Collection::class, $response);
-        $this->assertCount(2, $response);
-        $this->assertSame('BUNGEE_VERSION', $response->get(0)->key);
-        $this->assertSame('123', $response->get(0)->value);
-        $this->assertSame('SERVER_JARFILE', $response->get(1)->key);
-        $this->assertSame('server.jar', $response->get(1)->value);
+        $variables = $response->sortBy('key')->values();
+        $this->assertCount(2, $variables);
+        $this->assertSame('BUNGEE_VERSION', $variables->get(0)->key);
+        $this->assertSame('123', $variables->get(0)->value);
+        $this->assertSame('SERVER_JARFILE', $variables->get(1)->key);
+        $this->assertSame('server.jar', $variables->get(1)->value);
     }
 
     public function testNullableEnvironmentVariablesCanBeUsedCorrectly()
@@ -135,10 +136,7 @@ class VariableValidatorServiceTest extends IntegrationTestCase
         $this->assertSame('', $response->get(0)->value);
     }
 
-    /**
-     * @return \Pterodactyl\Services\Servers\VariableValidatorService
-     */
-    private function getService()
+    private function getService(): VariableValidatorService
     {
         return $this->app->make(VariableValidatorService::class);
     }

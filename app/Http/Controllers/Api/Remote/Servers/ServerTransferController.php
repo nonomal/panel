@@ -2,8 +2,6 @@
 
 namespace Pterodactyl\Http\Controllers\Api\Remote\Servers;
 
-use Carbon\CarbonImmutable;
-use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Http\JsonResponse;
 use Pterodactyl\Models\Allocation;
@@ -11,118 +9,37 @@ use Illuminate\Support\Facades\Log;
 use Pterodactyl\Models\ServerTransfer;
 use Illuminate\Database\ConnectionInterface;
 use Pterodactyl\Http\Controllers\Controller;
-use Pterodactyl\Services\Nodes\NodeJWTService;
 use Pterodactyl\Repositories\Eloquent\ServerRepository;
 use Pterodactyl\Repositories\Wings\DaemonServerRepository;
-use Pterodactyl\Repositories\Wings\DaemonTransferRepository;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException;
-use Pterodactyl\Services\Servers\ServerConfigurationStructureService;
 
 class ServerTransferController extends Controller
 {
     /**
-     * @var \Illuminate\Database\ConnectionInterface
-     */
-    private $connection;
-
-    /**
-     * @var \Pterodactyl\Repositories\Eloquent\ServerRepository
-     */
-    private $repository;
-
-    /**
-     * @var \Pterodactyl\Repositories\Wings\DaemonServerRepository
-     */
-    private $daemonServerRepository;
-
-    /**
-     * @var \Pterodactyl\Repositories\Wings\DaemonTransferRepository
-     */
-    private $daemonTransferRepository;
-
-    /**
-     * @var \Pterodactyl\Services\Servers\ServerConfigurationStructureService
-     */
-    private $configurationStructureService;
-
-    /**
-     * @var \Pterodactyl\Services\Nodes\NodeJWTService
-     */
-    private $jwtService;
-
-    /**
      * ServerTransferController constructor.
      */
     public function __construct(
-        ConnectionInterface $connection,
-        ServerRepository $repository,
-        DaemonServerRepository $daemonServerRepository,
-        DaemonTransferRepository $daemonTransferRepository,
-        ServerConfigurationStructureService $configurationStructureService,
-        NodeJWTService $jwtService
+        private ConnectionInterface $connection,
+        private ServerRepository $repository,
+        private DaemonServerRepository $daemonServerRepository
     ) {
-        $this->connection = $connection;
-        $this->repository = $repository;
-        $this->daemonServerRepository = $daemonServerRepository;
-        $this->daemonTransferRepository = $daemonTransferRepository;
-        $this->configurationStructureService = $configurationStructureService;
-        $this->jwtService = $jwtService;
-    }
-
-    /**
-     * The daemon notifies us about the archive status.
-     *
-     * @return \Illuminate\Http\JsonResponse
-     *
-     * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
-     * @throws \Throwable
-     */
-    public function archive(Request $request, string $uuid)
-    {
-        $server = $this->repository->getByUuid($uuid);
-
-        // Unsuspend the server and don't continue the transfer.
-        if (!$request->input('successful')) {
-            return $this->processFailedTransfer($server->transfer);
-        }
-
-        $this->connection->transaction(function () use ($server) {
-            // This token is used by the new node the server is being transferred to. It allows
-            // that node to communicate with the old node during the process to initiate the
-            // actual file transfer.
-            $token = $this->jwtService
-                ->setExpiresAt(CarbonImmutable::now()->addMinutes(15))
-                ->setSubject($server->uuid)
-                ->handle($server->node, $server->uuid, 'sha256');
-
-            // Update the archived field on the transfer to make clients connect to the websocket
-            // on the new node to be able to receive transfer logs.
-            $server->transfer->forceFill(['archived' => true])->saveOrFail();
-
-            // On the daemon transfer repository, make sure to set the node after the server
-            // because setServer() tells the repository to use the server's node and not the one
-            // we want to specify.
-            $this->daemonTransferRepository
-                ->setServer($server)
-                ->setNode($server->transfer->newNode)
-                ->notify($server, $token);
-        });
-
-        return new JsonResponse([], Response::HTTP_NO_CONTENT);
     }
 
     /**
      * The daemon notifies us about a transfer failure.
      *
-     * @return \Illuminate\Http\JsonResponse
-     *
      * @throws \Throwable
      */
-    public function failure(string $uuid)
+    public function failure(string $uuid): JsonResponse
     {
         $server = $this->repository->getByUuid($uuid);
+        $transfer = $server->transfer;
+        if (is_null($transfer)) {
+            throw new ConflictHttpException('Server is not being transferred.');
+        }
 
-        return $this->processFailedTransfer($server->transfer);
+        return $this->processFailedTransfer($transfer);
     }
 
     /**
@@ -134,6 +51,9 @@ class ServerTransferController extends Controller
     {
         $server = $this->repository->getByUuid($uuid);
         $transfer = $server->transfer;
+        if (is_null($transfer)) {
+            throw new ConflictHttpException('Server is not being transferred.');
+        }
 
         /** @var \Pterodactyl\Models\Server $server */
         $server = $this->connection->transaction(function () use ($server, $transfer) {
@@ -168,14 +88,12 @@ class ServerTransferController extends Controller
     }
 
     /**
-     * Release all of the reserved allocations for this transfer and mark it as failed in
+     * Release all the reserved allocations for this transfer and mark it as failed in
      * the database.
-     *
-     * @return \Illuminate\Http\JsonResponse
      *
      * @throws \Throwable
      */
-    protected function processFailedTransfer(ServerTransfer $transfer)
+    protected function processFailedTransfer(ServerTransfer $transfer): JsonResponse
     {
         $this->connection->transaction(function () use (&$transfer) {
             $transfer->forceFill(['successful' => false])->saveOrFail();

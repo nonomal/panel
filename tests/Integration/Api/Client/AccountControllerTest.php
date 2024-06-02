@@ -26,8 +26,6 @@ class AccountControllerTest extends ClientApiIntegrationTestCase
                 'admin' => false,
                 'username' => $user->username,
                 'email' => $user->email,
-                'first_name' => $user->name_first,
-                'last_name' => $user->name_last,
                 'language' => $user->language,
             ],
         ]);
@@ -52,7 +50,7 @@ class AccountControllerTest extends ClientApiIntegrationTestCase
     }
 
     /**
-     * Tests that an email is not updated if the password provided in the reuqest is not
+     * Tests that an email is not updated if the password provided in the request is not
      * valid for the account.
      */
     public function testEmailIsNotUpdatedWhenPasswordIsInvalid()

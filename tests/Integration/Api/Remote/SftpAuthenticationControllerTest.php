@@ -97,7 +97,7 @@ class SftpAuthenticationControllerTest extends IntegrationTestCase
      *
      * @dataProvider authorizationTypeDataProvider
      */
-    public function testUserIsThrottledIfInvalidCredentialsAreProvided(string $type)
+    public function testUserIsThrottledIfInvalidCredentialsAreProvided()
     {
         for ($i = 0; $i <= 10; ++$i) {
             $this->postJson('/api/remote/sftp/auth', [
@@ -213,7 +213,7 @@ class SftpAuthenticationControllerTest extends IntegrationTestCase
         $this->post('/api/remote/sftp/auth', $data)->assertForbidden();
     }
 
-    public function authorizationTypeDataProvider(): array
+    public static function authorizationTypeDataProvider(): array
     {
         return [
             'password auth' => ['password'],
@@ -221,7 +221,7 @@ class SftpAuthenticationControllerTest extends IntegrationTestCase
         ];
     }
 
-    public function serverStateDataProvider(): array
+    public static function serverStateDataProvider(): array
     {
         return [
             'installing' => [Server::STATUS_INSTALLING],

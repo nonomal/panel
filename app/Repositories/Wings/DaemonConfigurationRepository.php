@@ -3,6 +3,7 @@
 namespace Pterodactyl\Repositories\Wings;
 
 use Pterodactyl\Models\Node;
+use Psr\Http\Message\ResponseInterface;
 use GuzzleHttp\Exception\TransferException;
 use Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException;
 
@@ -13,10 +14,10 @@ class DaemonConfigurationRepository extends DaemonRepository
      *
      * @throws \Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException
      */
-    public function getSystemInformation(): array
+    public function getSystemInformation(?int $version = null): array
     {
         try {
-            $response = $this->getHttpClient()->get('/api/system');
+            $response = $this->getHttpClient()->get('/api/system' . (!is_null($version) ? '?v=' . $version : ''));
         } catch (TransferException $exception) {
             throw new DaemonConnectionException($exception);
         }
@@ -29,11 +30,9 @@ class DaemonConfigurationRepository extends DaemonRepository
      * this instance using a passed-in model. This allows us to change plenty of information
      * in the model, and still use the old, pre-update model to actually make the HTTP request.
      *
-     * @return \Psr\Http\Message\ResponseInterface
-     *
      * @throws \Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException
      */
-    public function update(Node $node)
+    public function update(Node $node): ResponseInterface
     {
         try {
             return $this->getHttpClient()->post(

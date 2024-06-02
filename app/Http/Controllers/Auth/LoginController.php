@@ -9,37 +9,22 @@ use Pterodactyl\Models\User;
 use Illuminate\Http\JsonResponse;
 use Pterodactyl\Facades\Activity;
 use Illuminate\Contracts\View\View;
-use Illuminate\Contracts\View\Factory as ViewFactory;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class LoginController extends AbstractLoginController
 {
-    private ViewFactory $view;
-
-    /**
-     * LoginController constructor.
-     */
-    public function __construct(ViewFactory $view)
-    {
-        parent::__construct();
-
-        $this->view = $view;
-    }
-
     /**
      * Handle all incoming requests for the authentication routes and render the
-     * base authentication view component. Vuejs will take over at this point and
-     * turn the login area into a SPA.
+     * base authentication view component. React will take over at this point and
+     * turn the login area into an SPA.
      */
     public function index(): View
     {
-        return $this->view->make('templates/auth.core');
+        return view('templates/auth.core');
     }
 
     /**
      * Handle a login request to the application.
-     *
-     * @return \Illuminate\Http\JsonResponse|void
      *
      * @throws \Pterodactyl\Exceptions\DisplayException
      * @throws \Illuminate\Validation\ValidationException
@@ -56,14 +41,14 @@ class LoginController extends AbstractLoginController
 
             /** @var \Pterodactyl\Models\User $user */
             $user = User::query()->where($this->getField($username), $username)->firstOrFail();
-        } catch (ModelNotFoundException $exception) {
+        } catch (ModelNotFoundException) {
             $this->sendFailedLoginResponse($request);
         }
 
         // Ensure that the account is using a valid username and password before trying to
         // continue. Previously this was handled in the 2FA checkpoint, however that has
         // a flaw in which you can discover if an account exists simply by seeing if you
-        // can proceede to the next step in the login process.
+        // can proceed to the next step in the login process.
         if (!password_verify($request->input('password'), $user->password)) {
             $this->sendFailedLoginResponse($request, $user);
         }

@@ -4,16 +4,14 @@ namespace Pterodactyl\Http\Requests\Api\Client\Servers\Subusers;
 
 use Illuminate\Http\Request;
 use Pterodactyl\Models\User;
+use Pterodactyl\Models\Subuser;
 use Pterodactyl\Exceptions\Http\HttpForbiddenException;
 use Pterodactyl\Http\Requests\Api\Client\ClientApiRequest;
 use Pterodactyl\Services\Servers\GetUserPermissionsService;
 
 abstract class SubuserRequest extends ClientApiRequest
 {
-    /**
-     * @var \Pterodactyl\Models\Subuser|null
-     */
-    protected $model;
+    protected ?Subuser $model;
 
     /**
      * Authorize the request and ensure that a user is not trying to modify themselves.
@@ -65,7 +63,6 @@ abstract class SubuserRequest extends ClientApiRequest
         // Otherwise, get the current subuser's permission set, and ensure that the
         // permissions they are trying to assign are not _more_ than the ones they
         // already have.
-        /** @var \Pterodactyl\Models\Subuser|null $subuser */
         /** @var \Pterodactyl\Services\Servers\GetUserPermissionsService $service */
         $service = $this->container->make(GetUserPermissionsService::class);
 

@@ -16,65 +16,25 @@ use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
 class InitiateBackupService
 {
-    /**
-     * @var string[]|null
-     */
-    private $ignoredFiles;
+    private ?array $ignoredFiles;
 
-    /**
-     * @var bool
-     */
-    private $isLocked = false;
-
-    /**
-     * @var \Pterodactyl\Repositories\Eloquent\BackupRepository
-     */
-    private $repository;
-
-    /**
-     * @var \Illuminate\Database\ConnectionInterface
-     */
-    private $connection;
-
-    /**
-     * @var \Pterodactyl\Repositories\Wings\DaemonBackupRepository
-     */
-    private $daemonBackupRepository;
-
-    /**
-     * @var \Pterodactyl\Extensions\Backups\BackupManager
-     */
-    private $backupManager;
-
-    /**
-     * @var \Pterodactyl\Services\Backups\DeleteBackupService
-     */
-    private $deleteBackupService;
+    private bool $isLocked = false;
 
     /**
      * InitiateBackupService constructor.
-     *
-     * @param \Pterodactyl\Services\Backups\DeleteBackupService $deleteBackupService
      */
     public function __construct(
-        BackupRepository $repository,
-        ConnectionInterface $connection,
-        DaemonBackupRepository $daemonBackupRepository,
-        DeleteBackupService $deleteBackupService,
-        BackupManager $backupManager
+        private BackupRepository $repository,
+        private ConnectionInterface $connection,
+        private DaemonBackupRepository $daemonBackupRepository,
+        private DeleteBackupService $deleteBackupService,
+        private BackupManager $backupManager
     ) {
-        $this->repository = $repository;
-        $this->connection = $connection;
-        $this->daemonBackupRepository = $daemonBackupRepository;
-        $this->backupManager = $backupManager;
-        $this->deleteBackupService = $deleteBackupService;
     }
 
     /**
      * Set if the backup should be locked once it is created which will prevent
      * its deletion by users or automated system processes.
-     *
-     * @return $this
      */
     public function setIsLocked(bool $isLocked): self
     {
@@ -87,10 +47,8 @@ class InitiateBackupService
      * Sets the files to be ignored by this backup.
      *
      * @param string[]|null $ignored
-     *
-     * @return $this
      */
-    public function setIgnoredFiles(?array $ignored)
+    public function setIgnoredFiles(?array $ignored): self
     {
         if (is_array($ignored)) {
             foreach ($ignored as $value) {
@@ -140,17 +98,17 @@ class InitiateBackupService
             // Get the oldest backup the server has that is not "locked" (indicating a backup that should
             // never be automatically purged). If we find a backup we will delete it and then continue with
             // this process. If no backup is found that can be used an exception is thrown.
-            /** @var \Pterodactyl\Models\Backup $oldest */
             $oldest = $successful->where('is_locked', false)->orderBy('created_at')->first();
             if (!$oldest) {
                 throw new TooManyBackupsException($server->backup_limit);
             }
 
+            /* @var Backup $oldest */
             $this->deleteBackupService->handle($oldest);
         }
 
         return $this->connection->transaction(function () use ($server, $name) {
-            /** @var \Pterodactyl\Models\Backup $backup */
+            /** @var Backup $backup */
             $backup = $this->repository->create([
                 'server_id' => $server->id,
                 'uuid' => Uuid::uuid4()->toString(),

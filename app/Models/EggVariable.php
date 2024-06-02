@@ -2,6 +2,9 @@
 
 namespace Pterodactyl\Models;
 
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
 /**
  * @property int $id
  * @property int $egg_id
@@ -15,8 +18,9 @@ namespace Pterodactyl\Models;
  * @property \Carbon\CarbonImmutable $created_at
  * @property \Carbon\CarbonImmutable $updated_at
  * @property bool $required
- * @property \Pterodactyl\Models\Egg $egg
- * @property \Pterodactyl\Models\ServerVariable $serverVariable
+ * @property Egg $egg
+ * @property ServerVariable $serverVariables
+ * @property string $field_type
  *
  * The "server_value" variable is only present on the object if you've loaded this model
  * using the server relationship.
@@ -32,34 +36,23 @@ class EggVariable extends Model
 
     /**
      * Reserved environment variable names.
-     *
-     * @var string
      */
     public const RESERVED_ENV_NAMES = 'SERVER_MEMORY,SERVER_IP,SERVER_PORT,ENV,HOME,USER,STARTUP,SERVER_UUID,UUID';
 
-    /**
-     * @var bool
-     */
-    protected $immutableDates = true;
+    protected bool $immutableDates = true;
 
     /**
      * The table associated with the model.
-     *
-     * @var string
      */
     protected $table = 'egg_variables';
 
     /**
      * Fields that are not mass assignable.
-     *
-     * @var array
      */
     protected $guarded = ['id', 'created_at', 'updated_at'];
 
     /**
      * Cast values to correct type.
-     *
-     * @var array
      */
     protected $casts = [
         'egg_id' => 'integer',
@@ -67,10 +60,7 @@ class EggVariable extends Model
         'user_editable' => 'bool',
     ];
 
-    /**
-     * @var array
-     */
-    public static $validationRules = [
+    public static array $validationRules = [
         'egg_id' => 'exists:eggs,id',
         'name' => 'required|string|between:1,191',
         'description' => 'string',
@@ -81,36 +71,28 @@ class EggVariable extends Model
         'rules' => 'required|string',
     ];
 
-    /**
-     * @var array
-     */
     protected $attributes = [
         'user_editable' => 0,
         'user_viewable' => 0,
     ];
 
-    /**
-     * @return bool
-     */
-    public function getRequiredAttribute()
+    public function getRequiredAttribute(): bool
     {
         return in_array('required', explode('|', $this->rules));
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     * Returns the egg that this variable belongs to.
      */
-    public function egg()
+    public function egg(): BelongsTo
     {
-        return $this->hasOne(Egg::class);
+        return $this->belongsTo(Egg::class);
     }
 
     /**
      * Return server variables associated with this variable.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
-    public function serverVariable()
+    public function serverVariables(): HasMany
     {
         return $this->hasMany(ServerVariable::class, 'variable_id');
     }

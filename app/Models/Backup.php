@@ -3,6 +3,7 @@
 namespace Pterodactyl\Models;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int $id
@@ -21,7 +22,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property \Carbon\CarbonImmutable $updated_at
  * @property \Carbon\CarbonImmutable|null $deleted_at
  * @property \Pterodactyl\Models\Server $server
- * @property \Pterodactyl\Models\AuditLog[] $audits
  */
 class Backup extends Model
 {
@@ -32,37 +32,19 @@ class Backup extends Model
     public const ADAPTER_WINGS = 'wings';
     public const ADAPTER_AWS_S3 = 's3';
 
-    /**
-     * @var string
-     */
     protected $table = 'backups';
 
-    /**
-     * @var bool
-     */
-    protected $immutableDates = true;
+    protected bool $immutableDates = true;
 
-    /**
-     * @var array
-     */
     protected $casts = [
         'id' => 'int',
         'is_successful' => 'bool',
         'is_locked' => 'bool',
         'ignored_files' => 'array',
         'bytes' => 'int',
+        'completed_at' => 'datetime',
     ];
 
-    /**
-     * @var array
-     */
-    protected $dates = [
-        'completed_at',
-    ];
-
-    /**
-     * @var array
-     */
     protected $attributes = [
         'is_successful' => false,
         'is_locked' => false,
@@ -71,15 +53,9 @@ class Backup extends Model
         'upload_id' => null,
     ];
 
-    /**
-     * @var string[]
-     */
     protected $guarded = ['id', 'created_at', 'updated_at', 'deleted_at'];
 
-    /**
-     * @var array
-     */
-    public static $validationRules = [
+    public static array $validationRules = [
         'server_id' => 'bail|required|numeric|exists:servers,id',
         'uuid' => 'required|uuid',
         'is_successful' => 'boolean',
@@ -92,10 +68,7 @@ class Backup extends Model
         'upload_id' => 'nullable|string',
     ];
 
-    /**
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function server()
+    public function server(): BelongsTo
     {
         return $this->belongsTo(Server::class);
     }

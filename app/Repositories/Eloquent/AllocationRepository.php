@@ -10,16 +10,14 @@ class AllocationRepository extends EloquentRepository implements AllocationRepos
 {
     /**
      * Return the model backing this repository.
-     *
-     * @return string
      */
-    public function model()
+    public function model(): string
     {
         return Allocation::class;
     }
 
     /**
-     * Return all of the allocations that exist for a node that are not currently
+     * Return all the allocations that exist for a node that are not currently
      * allocated.
      */
     public function getUnassignedAllocationIds(int $node): array
@@ -42,14 +40,14 @@ class AllocationRepository extends EloquentRepository implements AllocationRepos
      */
     protected function getDiscardableDedicatedAllocations(array $nodes = []): array
     {
-        $query = Allocation::query()->selectRaw('CONCAT_WS("-", node_id, ip) as result');
+        $query = Allocation::query()->selectRaw('CONCAT_WS(\'-\', node_id, ip) as result');
 
         if (!empty($nodes)) {
             $query->whereIn('node_id', $nodes);
         }
 
         return $query->whereNotNull('server_id')
-            ->groupByRaw('CONCAT(node_id, ip)')
+            ->groupByRaw('result')
             ->get()
             ->pluck('result')
             ->toArray();
@@ -57,10 +55,8 @@ class AllocationRepository extends EloquentRepository implements AllocationRepos
 
     /**
      * Return a single allocation from those meeting the requirements.
-     *
-     * @return \Pterodactyl\Models\Allocation|null
      */
-    public function getRandomAllocation(array $nodes, array $ports, bool $dedicated = false)
+    public function getRandomAllocation(array $nodes, array $ports, bool $dedicated = false): ?Allocation
     {
         $query = Allocation::query()->whereNull('server_id');
 
@@ -93,7 +89,7 @@ class AllocationRepository extends EloquentRepository implements AllocationRepos
 
             if (!empty($discard)) {
                 $query->whereNotIn(
-                    $this->getBuilder()->raw('CONCAT_WS("-", node_id, ip)'),
+                    $this->getBuilder()->raw('CONCAT_WS(\'-\', node_id, ip)'),
                     $discard
                 );
             }

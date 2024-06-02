@@ -2,8 +2,6 @@
 
 namespace Pterodactyl\Http\Middleware;
 
-use Closure;
-use stdClass;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -15,32 +13,16 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class VerifyReCaptcha
 {
     /**
-     * @var \Illuminate\Contracts\Config\Repository
-     */
-    private $config;
-
-    /**
-     * @var \Illuminate\Contracts\Events\Dispatcher
-     */
-    private $dispatcher;
-
-    /**
      * VerifyReCaptcha constructor.
      */
-    public function __construct(Dispatcher $dispatcher, Repository $config)
+    public function __construct(private Dispatcher $dispatcher, private Repository $config)
     {
-        $this->config = $config;
-        $this->dispatcher = $dispatcher;
     }
 
     /**
      * Handle an incoming request.
-     *
-     * @param \Illuminate\Http\Request $request
-     *
-     * @return \Illuminate\Http\RedirectResponse|mixed
      */
-    public function handle($request, Closure $next)
+    public function handle(Request $request, \Closure $next): mixed
     {
         if (!$this->config->get('recaptcha.enabled')) {
             return $next($request);
@@ -77,7 +59,7 @@ class VerifyReCaptcha
     /**
      * Determine if the response from the recaptcha servers was valid.
      */
-    private function isResponseVerified(stdClass $result, Request $request): bool
+    private function isResponseVerified(\stdClass $result, Request $request): bool
     {
         if (!$this->config->get('recaptcha.verify_domain')) {
             return false;

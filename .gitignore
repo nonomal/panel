@@ -8,6 +8,7 @@
 storage/framework/*
 /.idea
 /nbproject
+/.direnv
 
 node_modules
 *.log
@@ -28,3 +29,8 @@ misc
 coverage.xml
 resources/lang/locales.js
 .phpunit.result.cache
+
+/public/build
+/public/hot
+result
+docker-compose.yaml

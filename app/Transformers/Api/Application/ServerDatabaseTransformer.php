@@ -3,18 +3,17 @@
 namespace Pterodactyl\Transformers\Api\Application;
 
 use Pterodactyl\Models\Database;
-use Pterodactyl\Models\DatabaseHost;
+use League\Fractal\Resource\Item;
+use League\Fractal\Resource\NullResource;
 use Pterodactyl\Services\Acl\Api\AdminAcl;
+use Pterodactyl\Transformers\Api\Transformer;
 use Illuminate\Contracts\Encryption\Encrypter;
 
-class ServerDatabaseTransformer extends BaseTransformer
+class ServerDatabaseTransformer extends Transformer
 {
-    protected array $availableIncludes = ['password', 'host'];
+    protected array $availableIncludes = ['host', 'password'];
 
-    /**
-     * @var Encrypter
-     */
-    private $encrypter;
+    private Encrypter $encrypter;
 
     /**
      * Perform dependency injection.
@@ -39,50 +38,38 @@ class ServerDatabaseTransformer extends BaseTransformer
     {
         return [
             'id' => $model->id,
-            'server' => $model->server_id,
-            'host' => $model->database_host_id,
-            'database' => $model->database,
+            'database_host_id' => $model->database_host_id,
+            'server_id' => $model->server_id,
+            'name' => $model->database,
             'username' => $model->username,
             'remote' => $model->remote,
             'max_connections' => $model->max_connections,
-            'created_at' => $model->created_at->toIso8601String(),
-            'updated_at' => $model->updated_at->toIso8601String(),
+            'created_at' => self::formatTimestamp($model->created_at),
+            'updated_at' => self::formatTimestamp($model->updated_at),
         ];
     }
 
     /**
-     * Include the database password in the request.
-     *
-     * @return \League\Fractal\Resource\Item
+     * Return the database host relationship for this server database.
      */
-    public function includePassword(Database $model)
+    public function includeHost(Database $model): Item|NullResource
+    {
+        if (!$this->authorize(AdminAcl::RESOURCE_DATABASE_HOSTS)) {
+            return $this->null();
+        }
+
+        return $this->item($model->host, new DatabaseHostTransformer());
+    }
+
+    /**
+     * Include the database password in the request.
+     */
+    public function includePassword(Database $model): Item
     {
         return $this->item($model, function (Database $model) {
             return [
                 'password' => $this->encrypter->decrypt($model->password),
             ];
         }, 'database_password');
-    }
-
-    /**
-     * Return the database host relationship for this server database.
-     *
-     * @return \League\Fractal\Resource\Item|\League\Fractal\Resource\NullResource
-     *
-     * @throws \Pterodactyl\Exceptions\Transformer\InvalidTransformerLevelException
-     */
-    public function includeHost(Database $model)
-    {
-        if (!$this->authorize(AdminAcl::RESOURCE_DATABASE_HOSTS)) {
-            return $this->null();
-        }
-
-        $model->loadMissing('host');
-
-        return $this->item(
-            $model->getRelation('host'),
-            $this->makeTransformer(DatabaseHostTransformer::class),
-            DatabaseHost::RESOURCE_NAME
-        );
     }
 }

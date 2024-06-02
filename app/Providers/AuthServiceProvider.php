@@ -11,22 +11,18 @@ use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvid
 class AuthServiceProvider extends ServiceProvider
 {
     /**
-     * The policy mappings for the application.
-     *
-     * @var array
+     * The model to policy mappings for the application.
      */
     protected $policies = [
         Server::class => ServerPolicy::class,
     ];
 
-    public function boot()
+    public function boot(): void
     {
         Sanctum::usePersonalAccessTokenModel(ApiKey::class);
-
-        $this->registerPolicies();
     }
 
-    public function register()
+    public function register(): void
     {
         Sanctum::ignoreMigrations();
     }

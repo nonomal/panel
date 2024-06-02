@@ -2,8 +2,6 @@
 
 namespace Pterodactyl\Services\Users;
 
-use Exception;
-use RuntimeException;
 use Pterodactyl\Models\User;
 use Illuminate\Contracts\Encryption\Encrypter;
 use Pterodactyl\Contracts\Repository\UserRepositoryInterface;
@@ -14,31 +12,13 @@ class TwoFactorSetupService
     public const VALID_BASE32_CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
     /**
-     * @var \Illuminate\Contracts\Config\Repository
-     */
-    private $config;
-
-    /**
-     * @var \Illuminate\Contracts\Encryption\Encrypter
-     */
-    private $encrypter;
-
-    /**
-     * @var \Pterodactyl\Contracts\Repository\UserRepositoryInterface
-     */
-    private $repository;
-
-    /**
      * TwoFactorSetupService constructor.
      */
     public function __construct(
-        ConfigRepository $config,
-        Encrypter $encrypter,
-        UserRepositoryInterface $repository
+        private ConfigRepository $config,
+        private Encrypter $encrypter,
+        private UserRepositoryInterface $repository
     ) {
-        $this->config = $config;
-        $this->encrypter = $encrypter;
-        $this->repository = $repository;
     }
 
     /**
@@ -56,8 +36,8 @@ class TwoFactorSetupService
             for ($i = 0; $i < $this->config->get('pterodactyl.auth.2fa.bytes', 16); ++$i) {
                 $secret .= substr(self::VALID_BASE32_CHARACTERS, random_int(0, 31), 1);
             }
-        } catch (Exception $exception) {
-            throw new RuntimeException($exception->getMessage(), 0, $exception);
+        } catch (\Exception $exception) {
+            throw new \RuntimeException($exception->getMessage(), 0, $exception);
         }
 
         $this->repository->withoutFreshModel()->update($user->id, [

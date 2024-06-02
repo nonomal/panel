@@ -2,11 +2,9 @@
 
 namespace Pterodactyl\Tests\Integration\Services\Servers;
 
-use Mockery;
-use Exception;
+use Mockery\MockInterface;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
-use Pterodactyl\Models\Server;
 use Pterodactyl\Models\Database;
 use Pterodactyl\Models\DatabaseHost;
 use GuzzleHttp\Exception\BadResponseException;
@@ -18,13 +16,11 @@ use Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException;
 
 class ServerDeletionServiceTest extends IntegrationTestCase
 {
-    /** @var \Mockery\MockInterface */
-    private $daemonServerRepository;
+    private MockInterface $daemonServerRepository;
 
-    /** @var \Mockery\MockInterface */
-    private $databaseManagementService;
+    private MockInterface $databaseManagementService;
 
-    private static $defaultLogger;
+    private static ?string $defaultLogger;
 
     /**
      * Stub out services that we don't want to test in here.
@@ -37,8 +33,8 @@ class ServerDeletionServiceTest extends IntegrationTestCase
         // There will be some log calls during this test, don't actually write to the disk.
         config()->set('logging.default', 'null');
 
-        $this->daemonServerRepository = Mockery::mock(DaemonServerRepository::class);
-        $this->databaseManagementService = Mockery::mock(DatabaseManagementService::class);
+        $this->daemonServerRepository = \Mockery::mock(DaemonServerRepository::class);
+        $this->databaseManagementService = \Mockery::mock(DatabaseManagementService::class);
 
         $this->app->instance(DaemonServerRepository::class, $this->daemonServerRepository);
         $this->app->instance(DatabaseManagementService::class, $this->databaseManagementService);
@@ -102,7 +98,7 @@ class ServerDeletionServiceTest extends IntegrationTestCase
             new DaemonConnectionException(new BadResponseException('Bad request', new Request('GET', '/test'), new Response(500)))
         );
 
-        $this->getService()->withForce(true)->handle($server);
+        $this->getService()->withForce()->handle($server);
 
         $this->assertDatabaseMissing('servers', ['id' => $server->id]);
     }
@@ -122,11 +118,11 @@ class ServerDeletionServiceTest extends IntegrationTestCase
         $server->refresh();
 
         $this->daemonServerRepository->expects('setServer->delete')->withNoArgs()->andReturnUndefined();
-        $this->databaseManagementService->expects('delete')->with(Mockery::on(function ($value) use ($db) {
+        $this->databaseManagementService->expects('delete')->with(\Mockery::on(function ($value) use ($db) {
             return $value instanceof Database && $value->id === $db->id;
-        }))->andThrows(new Exception());
+        }))->andThrows(new \Exception());
 
-        $this->expectException(Exception::class);
+        $this->expectException(\Exception::class);
         $this->getService()->handle($server);
 
         $this->assertDatabaseHas('servers', ['id' => $server->id]);
@@ -147,9 +143,9 @@ class ServerDeletionServiceTest extends IntegrationTestCase
         $server->refresh();
 
         $this->daemonServerRepository->expects('setServer->delete')->withNoArgs()->andReturnUndefined();
-        $this->databaseManagementService->expects('delete')->with(Mockery::on(function ($value) use ($db) {
+        $this->databaseManagementService->expects('delete')->with(\Mockery::on(function ($value) use ($db) {
             return $value instanceof Database && $value->id === $db->id;
-        }))->andThrows(new Exception());
+        }))->andThrows(new \Exception());
 
         $this->getService()->withForce(true)->handle($server);
 
@@ -157,10 +153,7 @@ class ServerDeletionServiceTest extends IntegrationTestCase
         $this->assertDatabaseMissing('databases', ['id' => $db->id]);
     }
 
-    /**
-     * @return \Pterodactyl\Services\Servers\ServerDeletionService
-     */
-    private function getService()
+    private function getService(): ServerDeletionService
     {
         return $this->app->make(ServerDeletionService::class);
     }
